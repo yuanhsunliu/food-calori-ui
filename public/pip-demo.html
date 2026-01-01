@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calo 醬 - Picture-in-Picture 測試頁面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .feature h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            color: white;
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+
+        .info-box strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* PiP 浮動視窗 */
+        .pip-window {
+            position: fixed;
+            width: 300px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            z-index: 9999;
+            overflow: hidden;
+            display: none;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .pip-window.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .pip-window.dragging {
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+            cursor: move;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .pip-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+
+        .pip-title {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pip-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pip-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .pip-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .pip-btn.minimize {
+            background: #fbbf24;
+        }
+
+        .pip-btn.close {
+            background: #ef4444;
+            color: white;
+        }
+
+        .pip-content {
+            width: 100%;
+            height: calc(100% - 44px);
+        }
+
+        .pip-content iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* 控制按鈕 */
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10000;
+        }
+
+        .fab {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: #22c55e;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px rgba(34, 197, 94, 0.5);
+        }
+
+        .fab.primary {
+            background: #667eea;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .fab.primary:hover {
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+        }
+
+        .fab-label {
+            position: absolute;
+            right: 70px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .fab:hover .fab-label {
+            opacity: 1;
+        }
+
+        .instruction {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .instruction h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .instruction ol {
+            color: #666;
+            line-height: 2;
+            margin-left: 20px;
+        }
+
+        .instruction li {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .pip-window {
+                width: 250px;
+                height: 416px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍶 Calo 醬 Picture-in-Picture 展示</h1>
+            <p>可拖曳的浮動視窗體驗</p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2>📱 關於 Picture-in-Picture</h2>
+                <p>
+                    Picture-in-Picture (PiP) 是一種可以將內容浮動在其他頁面上的技術，
+                    讓使用者可以在瀏覽主要內容的同時，操作其他功能。
+                </p>
+                <p>
+                    <strong>Calo 醬</strong> 設計為 300x500 像素的浮動視窗，
+                    完美適配各種使用場景：
+                </p>
+                <ul style="color: #666; line-height: 2; margin-left: 20px;">
+                    <li>📱 Line Bot 聊天視窗</li>
+                    <li>💬 Messenger Bot</li>
+                    <li>🔔 Slack 應用程式</li>
+                    <li>👥 Teams 整合</li>
+                    <li>🌐 網頁側邊欄</li>
+                </ul>
+
+                <div class="instruction">
+                    <h3>🎮 操作指南</h3>
+                    <ol>
+                        <li><strong>開啟 PiP</strong>：點擊右下角綠色按鈕 🍶</li>
+                        <li><strong>拖曳移動</strong>：點住標題欄拖曳視窗位置</li>
+                        <li><strong>最小化</strong>：點擊黃色按鈕縮小視窗</li>
+                        <li><strong>關閉</strong>：點擊紅色 × 按鈕關閉視窗</li>
+                        <li><strong>使用功能</strong>：在浮動視窗中正常操作</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>✨ 主要功能</h2>
+                <p><strong>🍱 食物記錄</strong></p>
+                <p>快速輸入食物名稱、熱量與備註資訊</p>
+                
+                <p><strong>📊 即時顯示</strong></p>
+                <p>自動依時間排序，最新記錄在最上方</p>
+                
+                <p><strong>✅ 輸入驗證</strong></p>
+                <p>智慧驗證確保資料正確性（0-9999 大卡）</p>
+                
+                <p><strong>🎨 現代設計</strong></p>
+                <p>使用 shadcn/ui 元件庫，介面清新健康</p>
+
+                <div class="info-box">
+                    <strong>🔗 API 整合</strong>
+                    後端服務：<code>http://127.0.0.1:5001</code><br>
+                    前端服務：<code>http://localhost:3000</code>
+                </div>
+
+                <p style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; color: #92400e;">
+                    <strong>💡 提示：</strong>點擊右下角的浮動按鈕開啟 PiP 視窗！
+                </p>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🖱️</div>
+                <h3>可拖曳移動</h3>
+                <p>自由拖曳到任意位置</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>精準尺寸</h3>
+                <p>300x500px 完美適配</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>即時互動</h3>
+                <p>浮動視窗完整功能</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🎨</div>
+                <h3>美觀設計</h3>
+                <p>現代化視覺效果</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PiP 浮動視窗 -->
+    <div class="pip-window" id="pipWindow">
+        <div class="pip-header" id="pipHeader">
+            <div class="pip-title">
+                <span>🍶</span>
+                <span>Calo 醬</span>
+            </div>
+            <div class="pip-controls">
+                <button class="pip-btn minimize" onclick="minimizePip()" title="最小化">−</button>
+                <button class="pip-btn close" onclick="closePip()" title="關閉">×</button>
+            </div>
+        </div>
+        <div class="pip-content">
+            <iframe src="http://localhost:3000" title="Calo 醬 - 食物熱量記錄"></iframe>
+        </div>
+    </div>
+
+    <!-- 浮動控制按鈕 -->
+    <div class="controls">
+        <button class="fab primary" onclick="openPip()" id="openBtn">
+            🍶
+            <span class="fab-label">開啟 Calo 醬</span>
+        </button>
+        <button class="fab" onclick="location.reload()">
+            🔄
+            <span class="fab-label">重新載入</span>
+        </button>
+    </div>
+
+    <script>
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        const pipWindow = document.getElementById('pipWindow');
+        const pipHeader = document.getElementById('pipHeader');
+        const openBtn = document.getElementById('openBtn');
+
+        // 開啟 PiP
+        function openPip() {
+            pipWindow.classList.add('active');
+            openBtn.style.display = 'none';
+            
+            // 預設位置：右下角
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const x = windowWidth - 330;
+            const y = windowHeight - 530;
+            
+            pipWindow.style.left = x + 'px';
+            pipWindow.style.top = y + 'px';
+            
+            xOffset = x;
+            yOffset = y;
+        }
+
+        // 關閉 PiP
+        function closePip() {
+            pipWindow.classList.remove('active');
+            openBtn.style.display = 'flex';
+        }
+
+        // 最小化 PiP
+        function minimizePip() {
+            pipWindow.style.height = '44px';
+            setTimeout(() => {
+                pipWindow.style.height = '500px';
+            }, 300);
+        }
+
+        // 拖曳開始
+        pipHeader.addEventListener('mousedown', dragStart);
+        pipHeader.addEventListener('touchstart', dragStart);
+
+        function dragStart(e) {
+            if (e.type === 'touchstart') {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }
+
+            if (e.target === pipHeader || pipHeader.contains(e.target)) {
+                isDragging = true;
+                pipWindow.classList.add('dragging');
+            }
+        }
+
+        // 拖曳中
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag);
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+
+                if (e.type === 'touchmove') {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                // 限制視窗不超出邊界
+                const maxX = window.innerWidth - 300;
+                const maxY = window.innerHeight - 500;
+                
+                xOffset = Math.max(0, Math.min(xOffset, maxX));
+                yOffset = Math.max(0, Math.min(yOffset, maxY));
+
+                setTranslate(xOffset, yOffset, pipWindow);
+            }
+        }
+
+        // 拖曳結束
+        document.addEventListener('mouseup', dragEnd);
+        document.addEventListener('touchend', dragEnd);
+
+        function dragEnd() {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+            pipWindow.classList.remove('dragging');
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.left = xPos + 'px';
+            el.style.top = yPos + 'px';
+        }
+
+        // 視窗大小改變時調整位置
+        window.addEventListener('resize', () => {
+            if (pipWindow.classList.contains('active')) {
+                const maxX = window.innerWidth - 300;
+                const maxY = window.innerHeight - 500;
+                
+                xOffset = Math.max(0, Math.min(xOffset, maxX));
+                yOffset = Math.max(0, Math.min(yOffset, maxY));
+                
+                setTranslate(xOffset, yOffset, pipWindow);
+            }
+        });
+    </script>
+</body>
+</html>
